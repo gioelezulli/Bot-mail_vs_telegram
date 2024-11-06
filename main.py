@@ -44,13 +44,15 @@ NUOVE_MAIL = config['imap']['ciclo_time']  # Controlla nuove email ogni X tempo
 DOMINIO = config['dominio']['filtra_dominio']
 
 async def get_updates():
-    updates = await bot.get_updates()
-    for update in updates:
-        print(f"Update trovato: {update}")
+    try:
+        updates = await bot.get_updates()
+        for update in updates:
+            print(f"Update trovato: {update}")
+    except:
+        logging.error("non riesco a connettermi a telegram")
 
 # Esegui questa funzione per vedere gli aggiornamenti ricevuti dal bot
 asyncio.run(get_updates())
-
 
 def pulisci_mail(body):
     """
