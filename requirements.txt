@@ -1,0 +1,4 @@
+python-telegram-bot
+imaplib2
+telepot
+nest_asyncio

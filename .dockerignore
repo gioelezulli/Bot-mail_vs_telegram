@@ -1,0 +1,16 @@
+#Project files
+.git
+.idea
+venv
+__pycache__
+temp
+.gitignore
+.gitattributes
+.github
+
+
+#Settings
+Settings
+.env
+DB
+Config
