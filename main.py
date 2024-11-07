@@ -92,10 +92,16 @@ async def invia_notifica_telegram(subject, sender, body):
                 logging.error(f"Errore nell'invio del messaggio a {chat_id} (tentativo {i + 1}/{tentativi}): {e}")
                 # Attende 2 secondi prima di ritentare
                 await asyncio.sleep(2)
+        else:
+            # Se tutti i tentativi falliscono, restituisce False
+            return False
+    # Se tutte le notifiche sono state inviate correttamente, restituisce True
+    return True
 
 async def invia_notifica_giornaliera():
     """Invia una notifica giornaliera per confermare che il bot è in esecuzione."""
     messaggio = f"Controllo e-mail in funzione! Data e ora: {datetime.datetime.now()}"
+    tutte_inviate = True  # Flag per tracciare se tutte le notifiche sono state inviate correttamente
     for chat_id in CHAT_ID:
         # Aggiungi tentativi di riprovo in caso di errore
         tentativi = 3
@@ -109,6 +115,13 @@ async def invia_notifica_giornaliera():
                 print(f"Errore nell'invio della notifica giornaliera a {chat_id} (tentativo {i + 1}/{tentativi}): {e}")
                 logging.error(f"Errore nell'invio della notifica giornaliera a {chat_id} (tentativo {i + 1}/{tentativi}): {e}")
                 await asyncio.sleep(2)
+        else:
+            # Se tutti i tentativi falliscono per una chat, imposta il flag su False
+            tutte_inviate = False
+
+    # Se tutte le notifiche sono state inviate correttamente, restituisce True, altrimenti False
+    return tutte_inviate
+
 
 async def leggi_email():
     """Connettiti alla casella email e cerca le email provenienti dal dominio specificato."""
@@ -170,17 +183,24 @@ async def leggi_email():
 
                     print(f"Corpo dell'email: {body[:50]}...")  # Debug: stampa parziale del corpo dell'email
 
-                    # Invia notifica via Telegram in modalità asincrona
-                    await invia_notifica_telegram(subject, from_, body)
+                    # Tenta di inviare la notifica e reimposta l'email come non letta in caso di fallimento
+                    successo = await invia_notifica_telegram(subject, from_, body)
+                    if not successo:
+                        await segna_non_letto(email_id, mail)
+                        print(f"Notifica non inviata. Email da {from_} reimpostata come non letta.")
+                        logging.info(f"Notifica non inviata. Email da {from_} reimpostata come non letta.")
                     await asyncio.sleep(2)  # Pausa tra invii per evitare sovraccarico
                 else:
                     # Se il dominio non corrisponde, reimposta l'email come non letta
-                    mail.store(email_id, '-FLAGS', '\\Seen')
+                    await segna_non_letto(email_id, mail)
                     print(f"Email da {from_} reimpostata come non letta (non dal dominio {DOMINIO}).")  # Debug: dominio non corrispondente
 
     # Logout dal server IMAP
     mail.logout()
     print("Logout dal server IMAP.")  # Debug: logout riuscito
+
+async def segna_non_letto(email_id, mail):
+    mail.store(email_id, '-FLAGS', '\\Seen')
 
 # Ciclo infinito per controllare nuove email periodicamente
 async def main():
@@ -191,10 +211,14 @@ async def main():
 
         # Verifica se è trascorso un giorno dall'ultimo controllo
         if (datetime.datetime.now() - ultimo_controllo).days >= 1:
-            await invia_notifica_giornaliera()
+            successo = await invia_notifica_giornaliera()
             await asyncio.sleep(2)  # Pausa tra invii per evitare sovraccarico
-            ultimo_controllo = datetime.datetime.now()
-
+            if successo:
+                # Se la notifica è stata inviata con successo a tutte le chat, aggiorna ultimo_controllo
+                ultimo_controllo = datetime.datetime.now()
+            else:
+                print("Notifica giornaliera non inviata a tutte le chat, riproverò al prossimo ciclo.")
+                logging.info(f"Notifica giornaliera non inviata a tutte le chat, riproverò al prossimo ciclo.")
         print("Attesa 60 secondi per nuovo controllo...")
         await asyncio.sleep(NUOVE_MAIL)
 
