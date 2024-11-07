@@ -72,32 +72,43 @@ def pulisci_mail(body):
 async def invia_notifica_telegram(subject, sender, body):
     """Inoltra il messaggio su Telegram."""
     # Pulisci il corpo della mail rimuovendo le righe che iniziano con '>>'
-    body_pulito = pulisci_mail(body)
-    messaggio = f"Oggetto: {subject}\nDa: {sender}\n\n{body_pulito}"
+    body_pulito = pulisci_mail(body)[:500]  # Primi 500 caratteri del body
+    messaggio = f"Oggetto: {subject}\nDa: {sender}\n\n{body_pulito}..."
     print(f"Invio messaggio a Telegram con CHAT_ID: {CHAT_ID}")  # Debug
     logging.info(f"Invio messaggio a Telegram con CHAT_ID: {CHAT_ID}")  # Debug
     print(f"Contenuto del messaggio: {messaggio}")  # Debug
     for chat_id in CHAT_ID:
         print(f"Invio messaggio alla chat con CHAT_ID: {chat_id}")  # Debug
-        try:
-            await bot.send_message(chat_id=chat_id, text=messaggio)
-            print(f"Notifica inviata a {chat_id}!")  # Debug
-            logging.info(f"Notifica inviata a {chat_id}!")  # Debug
-        except Exception as e:
-            print(f"Errore nell'invio del messaggio a {chat_id}: {e}")  # Debug dell'errore
-            logging.error(f"Errore nell'invio del messaggio a {chat_id}: {e}")  # Debug dell'errore
+    # Aggiungi tentativi di riprovo in caso di errore
+        tentativi = 3
+        for i in range(tentativi):
+            try:
+                await bot.send_message(chat_id=chat_id, text=messaggio)
+                print(f"Notifica inviata a {chat_id}!")  # Debug
+                logging.info(f"Notifica inviata a {chat_id}!")  # Debug
+                break  # Se l'invio ha successo, esce dal ciclo di retry
+            except Exception as e:
+                print(f"Errore nell'invio del messaggio a {chat_id} (tentativo {i + 1}/{tentativi}): {e}")
+                logging.error(f"Errore nell'invio del messaggio a {chat_id} (tentativo {i + 1}/{tentativi}): {e}")
+                # Attende 2 secondi prima di ritentare
+                await asyncio.sleep(2)
 
 async def invia_notifica_giornaliera():
     """Invia una notifica giornaliera per confermare che il bot è in esecuzione."""
     messaggio = f"Controllo e-mail in funzione! Data e ora: {datetime.datetime.now()}"
     for chat_id in CHAT_ID:
-        try:
-            await bot.send_message(chat_id=chat_id, text=messaggio)
-            print(f"Notifica giornaliera inviata a {chat_id}")
-            logging.info(f"Notifica giornaliera inviata a {chat_id}")
-        except Exception as e:
-            print(f"Errore nell'invio della notifica giornaliera a {chat_id}: {e}")
-            logging.error(f"Errore nell'invio della notifica giornaliera a {chat_id}: {e}")
+        # Aggiungi tentativi di riprovo in caso di errore
+        tentativi = 3
+        for i in range(tentativi):
+            try:
+                await bot.send_message(chat_id=chat_id, text=messaggio)
+                print(f"Notifica giornaliera inviata a {chat_id}")
+                logging.info(f"Notifica giornaliera inviata a {chat_id}")
+                break  # Se l'invio ha successo, esce dal ciclo di retry
+            except Exception as e:
+                print(f"Errore nell'invio della notifica giornaliera a {chat_id} (tentativo {i + 1}/{tentativi}): {e}")
+                logging.error(f"Errore nell'invio della notifica giornaliera a {chat_id} (tentativo {i + 1}/{tentativi}): {e}")
+                await asyncio.sleep(2)
 
 async def leggi_email():
     """Connettiti alla casella email e cerca le email provenienti dal dominio specificato."""
@@ -170,7 +181,6 @@ async def leggi_email():
     # Logout dal server IMAP
     mail.logout()
     print("Logout dal server IMAP.")  # Debug: logout riuscito
-
 
 # Ciclo infinito per controllare nuove email periodicamente
 async def main():
