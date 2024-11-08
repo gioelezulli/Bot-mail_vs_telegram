@@ -134,7 +134,7 @@ async def leggi_email():
     print("Casella inbox selezionata.")  # Debug: selezione casella
 
     # Data di inizio per l'ultimo mese
-    ultimo_mese = (datetime.datetime.now() - datetime.timedelta(days=2)).strftime("%d-%b-%Y")   # Debug: ultimi 2 giorni
+    ultimo_mese = (datetime.datetime.now() - datetime.timedelta(days=3)).strftime("%d-%b-%Y")   # Debug: ultimi 3 giorni
 
     # Cerca tutte le email non lette
     status, messaggi = mail.search(None, f'(UNSEEN SINCE {ultimo_mese})')
