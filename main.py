@@ -166,6 +166,7 @@ async def leggi_email():
                 # Decodifica il mittente
                 from_ = msg.get("From")
                 print(f"Mittente email: {from_}")  # Debug: stampa mittente
+                body = ""  # Inizializza `body` come stringa vuota
 
                 # Controlla se il mittente è del dominio specificato
                 if any(dominio in from_ for dominio in DOMINIO):
@@ -176,12 +177,28 @@ async def leggi_email():
                         for part in msg.walk():
                             content_type = part.get_content_type()
                             if content_type == "text/plain":
-                                body = part.get_payload(decode=True).decode()
+                                try:
+                                    body = part.get_payload(decode=True).decode()  # Tentativo di decodifica in utf-8
+                                except UnicodeDecodeError:
+                                    # Se utf-8 fallisce, riprova con un'altra codifica
+                                    try:
+                                        body = part.get_payload(decode=True).decode('latin-1')
+                                        print("Decodificato con 'latin-1' a causa di caratteri non UTF-8")
+                                    except UnicodeDecodeError:
+                                        # Come ultima risorsa, ignora o sostituisci i caratteri non validi
+                                        body = part.get_payload(decode=True).decode('utf-8', errors='replace')
+                                        print("Decodificato con 'utf-8' usando 'replace' per i caratteri non validi")
                                 break
                     else:
-                        body = msg.get_payload(decode=True).decode()
-
-                    print(f"Corpo dell'email: {body[:50]}...")  # Debug: stampa parziale del corpo dell'email
+                        try:
+                            body = msg.get_payload(decode=True).decode()
+                        except UnicodeDecodeError:
+                            try:
+                                body = msg.get_payload(decode=True).decode('latin-1')
+                                print("Decodificato con 'latin-1' a causa di caratteri non UTF-8")
+                            except UnicodeDecodeError:
+                                body = msg.get_payload(decode=True).decode('utf-8', errors='replace')
+                                print("Decodificato con 'utf-8' usando 'replace' per i caratteri non validi")
 
                     # Tenta di inviare la notifica e reimposta l'email come non letta in caso di fallimento
                     successo = await invia_notifica_telegram(subject, from_, body)
